@@ -6,16 +6,25 @@ Disclaimer: For anyone else that may come across this repository, this was for a
 ## Overview
 
 This function app supports 4 http methods:
+
 -GET
+
 -POST
+
 -PUT
+
 -DELETE
 
 In function_app.py there are 5 endpoints defined by a python decorator (@), routes are defined as:
+
 -get/notes
+
 -get/notes/count
+
 -post/notes
+
 -put/notes
+
 -delete/notes
 
 ### Structure
