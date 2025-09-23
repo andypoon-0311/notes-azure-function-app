@@ -30,5 +30,6 @@ In function_app.py there are 5 endpoints defined by a python decorator (@), rout
 ### Structure
 
 All requests and responses utilizes **JSON**
+
 When sending data in the request body, the content must be JSON
 GET request parameters may also be passed directly in the URL as query parameters
