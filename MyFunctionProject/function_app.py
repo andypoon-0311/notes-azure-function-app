@@ -60,14 +60,14 @@ def postNotes(req: func.HttpRequest) -> func.HttpResponse:
             "post_date": datetime.datetime.now().isoformat(),
             "last_modified_date": datetime.datetime.now().isoformat()
         }
-
-    if data and title:
+    is_duplicate = any(n for n in notes if n["title"].lower() == title.lower()) if title else False
+    if data and title and not is_duplicate:
         notes.append(data)
         save_notes(notes)
         return func.HttpResponse(f"[+] [POST] request successful\n{data}\n", status_code=201)
     else:
         return func.HttpResponse(
-            "[-] Bad [POST] request. Title is required, category and data optional. ALL is not valid.",
+            "[-] Bad [POST] request.\n Title is required, category and data optional.\n ALL is invalid.\nDuplicate titles are not allowed.",
             status_code=400
         )
 
@@ -96,7 +96,7 @@ def getNotes(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse("[-] Note not found.", status_code=404)
     else:
         return func.HttpResponse(
-            "[-] Bad [GET] request. Provide a title or use title=ALL.",
+            "[-] Bad [GET] request.\n Provide a title or use title=ALL.",
             status_code=400
         )
     
@@ -130,7 +130,7 @@ def putNotes(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse("[-] Note not found.", status_code=404)
     else:
         return func.HttpResponse(
-            "[-] Bad [PUT] request. Provide a valid title to update.",
+            "[-] Bad [PUT] request.\n Provide a valid title to update.\n ALL is invalid.",
             status_code=400
         )
 
@@ -161,7 +161,7 @@ def deleteNotes(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse("[-] Note not found.", status_code=404)
     else:
         return func.HttpResponse(
-            "[-] Bad [DELETE] request. Provide a valid title to delete.",
+            "[-] Bad [DELETE] request.\n Provide a valid title to delete.\n ALL is invalid.",
             status_code=400
         )
 
