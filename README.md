@@ -33,3 +33,25 @@ All requests and responses utilizes **JSON**
 
 When sending data in the request body, the content must be JSON
 GET request parameters may also be passed directly in the URL as query parameters
+
+**Input Format Example**:
+
+```json
+{
+    "title": "MyNote",
+    "category": "General",
+    "data": "This is a note"
+}
+```
+
+**Output Format Example**:
+
+```json
+{
+    "title": "MyNote",
+    "category": "General",
+    "data": "This is a note",
+    "post_date": "2025-09-22T18:30:00.123456",
+    "last_modified_date": "2025-09-22T18:30:00.123456"
+}
+```
