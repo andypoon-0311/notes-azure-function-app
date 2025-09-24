@@ -77,7 +77,7 @@ The only parameter required is the **title** parameter. Titles must be unique. I
 
 GET requests may also be passed as a parameter in your browser of choice
 
-*https://notesfuncapp111.azurewebsites.net/api/get/Notes?code=<apikey>&title=ALL*
+*https://notesfuncapp111.azurewebsites.net/api/get/Notes?code=**apikey**&title=ALL*
 
 --------------
 
@@ -87,7 +87,7 @@ The **COUNT** function is also a GET request. It takes no parameters and will re
 
 API Key is still required and may be passed in the request header as either x-functions-key or code. Or it may be passed in the url like below.
 
-*https://notesfuncapp111.azurewebsites.net/api/get/Notes/count?code=<<apikey>>*
+*https://notesfuncapp111.azurewebsites.net/api/get/Notes/count?code=**apikey***
 
 #### POST
 
