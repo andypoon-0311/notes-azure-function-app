@@ -5,6 +5,8 @@ Disclaimer: For anyone else that may come across this repository, this was for a
 
 ## Overview
 
+*Refer To MyFunctionProject/requirements.txt for dependencies*
+
 This function app supports 4 http methods:
 
 -GET
