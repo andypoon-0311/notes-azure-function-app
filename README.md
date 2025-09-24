@@ -1,7 +1,7 @@
 # notes-azure-function-app
 Simple function app in python to store notes using azure python sdk v2
 
-Disclaimer: For anyone else that may come across this repository, this was for a school project, please excuse the sloppy code if it comes off as sloppy I am not a developer by trade. And if you wish, feel free to take it and make it better for your own purpose.
+Disclaimer: For anyone else that may come across this repository, this was for a school project, please excuse the sloppy code if it comes off as sloppy I am not a developer by trade. And if you wish, feel free to take it and make it better for your own purposes.
 
 ## Overview
 
