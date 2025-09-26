@@ -9,14 +9,14 @@ By navigating to MyFunctionProject/function_app.py you will see the first 3 help
 
 **read_notes** gets a reference to the container named "storenotes". If it does not exist it will attempt to create it. Then it attempts to get a blob client for the "notes.json" file so that it can attempt to read its contents. It will return an empty list if nothing exists so it is important if you are deploying this in your own environment that you ensure the "notes.json" file exists within a container named "storenotes". This is where all of "notes" data will be stored.
 
-**save_notes** begins similarily to **read_notes**. It attempts to get a reference to the container named "storenotes". It then gets the blob "notes.json and uploads the user provided data to the blob as json. Be careful with POST and PUT operations as it will overwrite data, please reference line 35.
+**save_notes** begins similarily to **read_notes**. It attempts to get a reference to the container named "storenotes". It then gets the blob "notes.json" and uploads the user provided data to the blob as json. Be careful with POST and PUT operations as it will overwrite data, please reference line 35.
 
 ```python
 #overwrite data on line 35
 blob_client.upload_blob(json.dumps(data), overwrite=True)
 ```
 
-The endpoints all follow a similar structure besides **countNotes**. The structure was obtained from Microsoft's "Developer Reference Guide" and I did not deviate too much.
+The endpoints all follow a similar structure besides **countNotes**. **countNotes** just calls the **read_notes** function and stores it in *notes* as a list of dictionaries (json), and returns the length or number of entries in "notes.json". The structure was obtained from Microsoft's "Developer Reference Guide" and I did not deviate much.
 
 https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-python?tabs=get-started%2Casgi%2Capplication-level&pivots=python-mode-decorators
 
@@ -53,7 +53,7 @@ def default_template(req: func.HttpRequest) -> func.HttpResponse:
         )
 ```
 
-We will only reference the **getNotes** endpoint in this summary as there are further explanations and examples below for each endpoint. The endpoint is defined with a decorator (@) with a route *get/Notes* with one valid method of GET. Each endpoint will have it's own valid method respectively. It then logs the endpoint action with a message of "Python HTTP trigger function processed a [GET] request." You will have to access the logs through your_function_app -> Monitoring -> Logs. Basic knowledge of the kusto query language (KQL) is required to view these logs. 
+We will only reference the **getNotes** endpoint in this summary as there are further explanations and examples below for each endpoint. The endpoint is defined with a decorator (@) with a route *get/Notes* with one valid method of GET. Each endpoint will have it's own valid method respectively. It then logs the endpoint action with a message of "Python HTTP trigger function processed a [GET] request." You will have to access to the logs through your_function_app -> Monitoring -> Logs. Basic knowledge of the kusto query language (KQL) is required to view these logs. 
 
 ```kql
 traces
@@ -65,7 +65,7 @@ traces
 
 Then we proceed to call **read_notes** and store it in the *notes* variable. Following that the code attempts to extract the *title* parameter, if it does not find a *title* parameter it attempts to retrieve the json body and stores it as *req_body*. If both *title* and *req_body* are null, then the function attempts to retrieve the request body and assigns "title" (in the json request body) to *title*. If the title is equal to ALL, the function will return all notes. If a different title was provided the function will attempt to iterate through all notes stored in "notes.json" until it finds the corresponding title, else it will return a 404 with a message of "Note not found". If a title was not provided it will return a status code of 400 for a bad request. 
 
-The getNotes endpoint is the only endpoint that allows "ALL" as the *title* parameter. Any nuances in the endpoint will be explained below. 
+The **getNotes** endpoint is the only endpoint that allows "ALL" as the *title* parameter. Any nuances in the endpoints will be explained below. 
 
 ## Overview
 
