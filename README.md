@@ -1,5 +1,71 @@
 # notes-azure-function-app
-Simple function app in python to store notes using azure python sdk v2
+Simple function app in python to store notes using azure python sdk v2.
+
+The function app is connected to Azure Blob Storage so that data may persist on stable storage rather than living only in memory.
+
+By navigating to MyFunctionProject/function_app.py you will see the first 3 helper functions to facilitate this connection to blob storage.
+
+**get_blob_service_client** connects to the storage account using a connection string. In the code you may see "AzureWebJobsStorage" as the connection string. "AzureWebJobsStorage" is just the name of the environment variable in azure that contains the connection string, just as if you were using a local .env file to store a key to a resource.
+
+**read_notes** gets a reference to the container named "storenotes". If it does not exist it will attempt to create it. Then it attempts to get a blob client for the "notes.json" file so that it can attempt to read its contents. It will return an empty list if nothing exists so it is important if you are deploying this in your own environment that you ensure the "notes.json" file exists within a container named "storenotes". This is where all of "notes" data will be stored.
+
+**save_notes** begins similarily to **read_notes**. It attempts to get a reference to the container named "storenotes". It then gets the blob "notes.json and uploads the user provided data to the blob as json. Be careful with POST and PUT operations as it will overwrite data, please reference line 35.
+
+```python
+#overwrite data on line 35
+blob_client.upload_blob(json.dumps(data), overwrite=True)
+```
+
+The endpoints all follow a similar structure besides **countNotes**. The structure was obtained from Microsoft's "Developer Reference Guide" and I did not deviate too much.
+
+https://learn.microsoft.com/en-us/azure/azure-functions/functions-reference-python?tabs=get-started%2Casgi%2Capplication-level&pivots=python-mode-decorators
+
+```python
+import logging 
+
+import azure.functions as func 
+
+bp = func.Blueprint() 
+
+@bp.route(route="default_template") 
+def default_template(req: func.HttpRequest) -> func.HttpResponse: 
+    logging.info('Python HTTP trigger function processed a request.') 
+
+    name = req.params.get('name') 
+    if not name: 
+        try: 
+            req_body = req.get_json() 
+        except ValueError: 
+            pass 
+        else: 
+            name = req_body.get('name') 
+
+    if name: 
+        return func.HttpResponse( 
+            f"Hello, {name}. This HTTP-triggered function " 
+            f"executed successfully.") 
+    else: 
+        return func.HttpResponse( 
+            "This HTTP-triggered function executed successfully. " 
+            "Pass a name in the query string or in the request body for a" 
+            " personalized response.", 
+            status_code=200 
+        )
+```
+
+We will only reference the **getNotes** endpoint in this summary as there are further explanations and examples below for each endpoint. The endpoint is defined with a decorator (@) with a route *get/Notes* with one valid method of GET. Each endpoint will have it's own valid method respectively. It then logs the endpoint action with a message of "Python HTTP trigger function processed a [GET] request." You will have to access the logs through your_function_app -> Monitoring -> Logs. Basic knowledge of the kusto query language (KQL) is required to view these logs. 
+
+```kql
+traces
+| where operation_Name == "getNotes"
+| take 10
+// this will return the latest 10 logs from the traces table
+// the message column will contain your log line
+```
+
+Then we proceed to call **read_notes** and store it in the *notes* variable. Following that the code attempts to extract the *title* parameter, if it does not find a *title* parameter it attempts to retrieve the json body and stores it as *req_body*. If both *title* and *req_body* are null, then the function attempts to retrieve the request body and assigns "title" (in the json request body) to *title*. If the title is equal to ALL, the function will return all notes. If a different title was provided the function will attempt to iterate through all notes stored in "notes.json" until it finds the corresponding title, else it will return a 404 with a message of "Note not found". If a title was not provided it will return a status code of 400 for a bad request. 
+
+The getNotes endpoint is the only endpoint that allows "ALL" as the *title* parameter. Any nuances in the endpoint will be explained below. 
 
 ## Overview
 
