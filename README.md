@@ -159,7 +159,7 @@ API Key is still required and may be passed in the request header as either x-fu
 
 **Route**: *https://notesfuncapp111.azurewebsites.net/api/post/Notes*
 
-The minimum amount of parameters required for a POST is the **title** parameter. Users may also add the **category** and **data** parameters. All other parameters are ignored. "ALL" is invalid here and will result in a malformed request.
+The minimum amount of parameters required for a POST is the **title** parameter. Users may also add **category** and **data**, but it is unsupported to accept these values as a query parameter. These values must be passed through the request body. The date parameters are ignored if passed, the function app will handle this for you. "ALL" is invalid here and will result in a malformed request.
 
 NOTE: **Title** must be unique, duplicate titles will result in a malformed request (STATUS_CODE = 400)
 
