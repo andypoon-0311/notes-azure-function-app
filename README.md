@@ -1,13 +1,12 @@
-<p align="center">
-  <a href="https://youtu.be/LMVBpxSYq-s" target="_blank">
-    <img src="demo.gif" alt="Watch the demo" width="70%">
-  </a>
-</p>
-
-
-
 # notes-azure-function-app
 Simple function app in python to store notes using azure python sdk v2.
+
+**Click Here To Watch a Demo, Will Redirect To Youtube**
+<p align="center">
+  <a href="https://youtu.be/LMVBpxSYq-s">
+    <img src="https://img.youtube.com/vi/LMVBpxSYq-s/0.jpg" alt="Watch the demo" width="70%">
+  </a>
+</p>
 
 The function app is connected to Azure Blob Storage so that data may persist on stable storage rather than living only in memory.
 
