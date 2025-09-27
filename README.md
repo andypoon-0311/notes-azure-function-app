@@ -1,4 +1,10 @@
-<iframe src="https://drive.google.com/file/d/1N7N2XZszHUOqwqQAAhUp4Y0zoumHwk99/preview" width="640" height="480" allow="autoplay"></iframe>
+<p align="center">
+  <a href="https://youtu.be/LMVBpxSYq-s" target="_blank">
+    <img src="https://img.youtube.com/vi/LMVBpxSYq-s/0.jpg" 
+         alt="Watch the demo" 
+         style="width:70%; border-radius:15px;"/>
+  </a>
+</p>
 
 
 # notes-azure-function-app
