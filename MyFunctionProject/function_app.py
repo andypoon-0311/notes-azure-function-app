@@ -44,16 +44,16 @@ def postNotes(req: func.HttpRequest) -> func.HttpResponse:
     
     notes = read_notes()
     data = None
-    #title = None
+    title = None
 
-    title = req.params.get("title")
+    #title = req.params.get("title")
     try:
         req_body = req.get_json()
     except ValueError:
         req_body = {}
 
-    if not title and not req_body:
-        title = req_body.get("title")
+    #if not title and not req_body:
+    title = req_body.get("title")
     if title and title != "ALL":
         data = {
             "title": title,
