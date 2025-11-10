@@ -1,43 +1,80 @@
 import azure.functions as func
-from azure.storage.blob import BlobServiceClient
+from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-import functools
 import logging
 import datetime
 import os
 import json
-# establish the connection with the blob
-###############################################################################################################
-conn_str = os.getenv("AzureWebJobsStorage")             #stored as an environment variable in the azure, azure should do this for you when creating a function app; if receiving an internal server error please check this environment variable in azure
-CONTAINER_NAME = "storenotes"
-BLOB_NAME = "notes.json"
 
-def get_blob_service_client():
-    return BlobServiceClient.from_connection_string(conn_str)
+STORAGE_ACCOUNT = "STORAGE_ACCOUNT"
+TABLE_NAME = "NotesTable"
 
-def read_notes():
-    client = get_blob_service_client()
-    container_client = client.get_container_client(CONTAINER_NAME)
+def get_table_service_client():
+    account_name = os.getenv(STORAGE_ACCOUNT)
+    credential = DefaultAzureCredential()
+    service = TableServiceClient(endpoint=f"https://{account_name}.table.core.windows.net", credential=credential)
+    table_client = service.get_table_client(TABLE_NAME)
+
     try:
-        container_client.create_container()
-    except Exception:
-        pass                                            # if the container already exists pass
+        table_client.create_table()
+    except:
+        pass
 
-    blob_client = container_client.get_blob_client(BLOB_NAME)
+    return table_client
+
+def query_notes(title=None):
+    table = get_table_service_client()
+    if title is None:
+        return list(table.list_entities())
     try:
-        data = json.loads(blob_client.download_blob().readall())
-    except Exception:
-        data = []
-    return data
+        entity = table.get_entity(partition_key="Notes", row_key=title.lower())
+        return entity
+    except:
+        return None
 
-def save_notes(data):
-    client = get_blob_service_client()
-    container_client = client.get_container_client(CONTAINER_NAME)
-    blob_client = container_client.get_blob_client(BLOB_NAME)
-    blob_client.upload_blob(json.dumps(data), overwrite=True)
-############################################################################################################################
+def query_notes_id(note_id):
+    table = get_table_service_client()
+    entity = table.list_entities()
+    for i in entity:
+        if str(i.get("note_id")) == str(note_id):
+            return i
+    return None
 
+def create_note(title, category=None, data=None):
+    if not title:
+        return None  #Must have a title to create notes
+    
+    table = get_table_service_client()
+    now = datetime.datetime.now().isoformat()
+    row_key = title.lower()
+
+    try:
+        already_exists = table.get_entity(partition_key="Notes", row_key=row_key)
+        return None #In situations where the note already exists according to the row key (title must be unique)
+    except:
+        pass        #entity in azure table does not exist so we can proceed
+
+    entity = list(table.list_entities())
+    if not entity:
+        next_id = 1
+    else:
+        next_id = max(int(i.get("note_id", 0)) for i in entity) + 1 #gets max entity numeric id and adds 1 for a unique id
+
+    entity = {
+        "PartitionKey": "Notes",
+        "RowKey": row_key,
+        "note_id": next_id,
+        "title": title,
+        "category": category,
+        "data": data,
+        "post_date": now,
+        "last_modified_date": now
+    }
+
+    table.create_entity(entity=entity)
+    return entity
+ 
 def get_api_key():
     key_vault_url = os.getenv("KEY_VAULT_URL") 
     secret_name = "funcApp-apiKey"
@@ -64,36 +101,23 @@ def postNotes(req: func.HttpRequest) -> func.HttpResponse:
     if not validate_api_key(req):
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
     
-    notes = read_notes()
-    data = None
-    title = None
-
-    #title = req.params.get("title")
     try:
         req_body = req.get_json()
     except ValueError:
-        req_body = {}
+        return func.HttpResponse("[-] Bad [POST] request. Invalid JSON.", status_code=400)
 
-    #if not title and not req_body:
     title = req_body.get("title")
-    if title and title != "ALL":
-        data = {
-            "title": title,
-            "category": req_body.get("category"),
-            "data": req_body.get("data"),
-            "post_date": datetime.datetime.now().isoformat(),
-            "last_modified_date": datetime.datetime.now().isoformat()
-        }
-    is_duplicate = any(n for n in notes if n["title"].lower() == title.lower()) if title else False
-    if data and title and not is_duplicate:
-        notes.append(data)
-        save_notes(notes)
-        return func.HttpResponse(f"[+] [POST] request successful\n{data}\n", status_code=201)
-    else:
-        return func.HttpResponse(
-            "[-] Bad [POST] request.\n Title is required, category and data optional.\n ALL is invalid.\nDuplicate titles are not allowed.",
-            status_code=400
-        )
+    category = req_body.get("category")
+    data = req_body.get("data")
+    
+    if not title or title == "ALL":
+        return func.HttpResponse("[-] Bad [POST] request.\n Title is required and ALL is invalid.", status_code=400)
+    
+    entity = create_note(title, category, data)
+    if entity is None:
+        return func.HttpResponse("[-] Note with this title already exists.", status_code=409)  #Conflict
+    
+    return func.HttpResponse(json.dumps({"[+] POST successful": entity}), mimetype="application/json", status_code=201)
 
 # GET notes
 @app.route(route="get/Notes", methods=["GET"])
@@ -103,31 +127,38 @@ def getNotes(req: func.HttpRequest) -> func.HttpResponse:
     if not validate_api_key(req):
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
-    notes = read_notes()
-
     title = req.params.get("title")
+    note_id = req.params.get("note_id")
+
     try:
         req_body = req.get_json()
     except ValueError:
-        req_body = {}
+        return func.HttpResponse("[-] Bad [GET] request. Invalid JSON.", status_code=400)
 
-    if not title and req_body:
+    if not title and "title" in req_body:
         title = req_body.get("title")
-
-    if title == "ALL":
-        return func.HttpResponse(json.dumps(notes), mimetype="application/json", status_code=200)
-    elif title:
-        note = next((n for n in notes if n["title"].lower() == title.lower()), None)
-        if note:
-            return func.HttpResponse(json.dumps(note), mimetype="application/json", status_code=200)
-        else:
-            return func.HttpResponse("[-] Note not found.", status_code=404)
-    else:
-        return func.HttpResponse(
-            "[-] Bad [GET] request.\n Provide a title or use title=ALL.",
-            status_code=400
-        )
     
+    if not note_id and "note_id" in req_body:
+        note_id = req_body.get("note_id")
+
+    if title == "ALL" or (title is None and note_id is None):   #If no title or note_id provided, or title is ALL, get all notes
+        entity = query_notes
+        return func.HttpResponse(json.dumps(entity()), mimetype="application/json", status_code=200)
+    
+    if note_id:
+        entity = query_notes_id(note_id)
+        if entity is None:
+            return func.HttpResponse("[-] Note not found.", status_code=404)
+        return func.HttpResponse(json.dumps(entity), mimetype="application/json", status_code=200)
+
+    if title:
+        entity = query_notes(title)
+        if entity is None:
+            return func.HttpResponse("[-] Note not found.", status_code=404)
+        return func.HttpResponse(json.dumps(entity), mimetype="application/json", status_code=200)
+    
+    return func.HttpResponse("[-] Bad [GET] request.\n Provide a valid title or note_id to retrieve note.", status_code=400)
+
 # PUT notes
 @app.route(route="put/Notes", methods=["PUT"])
 def putNotes(req: func.HttpRequest) -> func.HttpResponse:
@@ -136,35 +167,45 @@ def putNotes(req: func.HttpRequest) -> func.HttpResponse:
     if not validate_api_key(req):
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
-    notes = read_notes()
-
     title = req.params.get("title")
+    note_id = req.params.get("note_id")
     try:
         req_body = req.get_json()
     except ValueError:
-        req_body = {}
+        return func.HttpResponse("[-] Bad [PUT] request. Invalid JSON.", status_code=400)
 
-    if not title:
+    if "title" in req_body and not title:
         title = req_body.get("title")
+    if "note_id" in req_body and not note_id:
+        note_id = req_body.get("note_id")
 
     if title == "ALL":
         return func.HttpResponse("[-] ALL is not valid for update.", status_code=400)
+    if note_id:
+        entity = query_notes_id(note_id)
+        if entity is None:
+            return func.HttpResponse("[-] Note not found.", status_code=404)
     elif title:
-        note = next((n for n in notes if n["title"].lower() == title.lower()), None)
-        if note:
-            for k in ["category", "data"]:
-                if k in req_body:
-                    note[k] = req_body[k]
-            note["last_modified_date"] = datetime.datetime.now().isoformat()
-            save_notes(notes)
-            return func.HttpResponse(f"[+] PUT successful: {note}", mimetype="application/json", status_code=200)
-        else:
+        entity = query_notes(title)
+        if entity is None:
             return func.HttpResponse("[-] Note not found.", status_code=404)
     else:
-        return func.HttpResponse(
-            "[-] Bad [PUT] request.\n Provide a valid title to update.\n ALL is invalid.",
-            status_code=400
-        )
+        return func.HttpResponse("[-] Bad [PUT] request.\n Provide a valid title or note_id to update note.\n ALL is invalid.", status_code=400)
+
+    updated = False
+    for i in ["category", "data"]:
+        if i in req_body:
+            entity[i] = req_body[i]
+            updated = True
+    
+    if not updated:
+        return func.HttpResponse("[-] No valid fields to update provided.", status_code=400)
+    
+    entity["last_modified_date"] = datetime.datetime.now().isoformat()
+    table = get_table_service_client()
+    table.update_entity(entity=entity, mode="replace")
+
+    return func.HttpResponse(json.dumps({"[+] PUT (Update) Successful For": entity}), mimetype="application/json", status_code=200)
 
 # DELETE notes
 @app.route(route="delete/Notes", methods=["DELETE"])
@@ -174,32 +215,40 @@ def deleteNotes(req: func.HttpRequest) -> func.HttpResponse:
     if not validate_api_key(req):
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
-    notes = read_notes()
-
     title = req.params.get("title")
+    note_id = req.params.get("note_id")
     try:
         req_body = req.get_json()
     except ValueError:
-        req_body = {}
+        return func.HttpResponse("[-] Bad [DELETE] request. Invalid JSON.", status_code=400)
 
-    if not title and req_body:
+    if not title and "title" in req_body:
         title = req_body.get("title")
+    if not note_id and "note_id" in req_body:
+        note_id = req_body.get("note_id")
 
     if title == "ALL":
         return func.HttpResponse("[-] ALL is not valid for deletion.", status_code=400)
-    elif title:
-        note = next((n for n in notes if n["title"].lower() == title.lower()), None)
-        if note:
-            deleted = notes.pop(notes.index(note))
-            save_notes(notes)
-            return func.HttpResponse(f"[+] DELETE successful: {deleted}", mimetype="application/json", status_code=200)
-        else:
+
+    table = get_table_service_client()
+
+    if note_id:
+        entity = query_notes_id(note_id)
+        if entity is None:
             return func.HttpResponse("[-] Note not found.", status_code=404)
-    else:
-        return func.HttpResponse(
-            "[-] Bad [DELETE] request.\n Provide a valid title to delete.\n ALL is invalid.",
-            status_code=400
-        )
+        
+        table.delete_entity(partition_key="Notes", row_key=entity["RowKey"])
+        return func.HttpResponse(json.dumps({"[+] DELETE successful for": entity}), status_code=200)
+    
+    if title:
+        entity = query_notes(title)
+        if entity is None:
+            return func.HttpResponse("[-] Note not found.", status_code=404)
+        
+        table.delete_entity(partition_key="Notes", row_key=entity["RowKey"])
+        return func.HttpResponse(json.dumps({"[+] DELETE successful for title": entity}), status_code=200)
+    
+    return func.HttpResponse("[-] Bad [DELETE] request.\n Provide a valid title or note_id to delete note.\n ALL is invalid.", status_code=400)
 
 # GET notes count
 #this takes not parameters and will ignore all parameters if provided will only return the length (count) of notes
@@ -210,5 +259,7 @@ def countNotes(req: func.HttpRequest) -> func.HttpResponse:
     if not validate_api_key(req):
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
-    notes = read_notes()
-    return func.HttpResponse(json.dumps({"count": len(notes)}), mimetype="application/json", status_code=200)
+    entity = query_notes()
+
+    count = len(entity)
+    return func.HttpResponse(json.dumps({"count": count}), mimetype="application/json", status_code=200)
