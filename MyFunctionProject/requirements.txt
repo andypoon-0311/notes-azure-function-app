@@ -4,3 +4,7 @@
 
 azure-functions
 azure-storage-blob
+azure-data-tables
+azure-identity
+azure-keyvault-secrets
+azure-data-tables

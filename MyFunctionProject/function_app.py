@@ -1,5 +1,8 @@
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+import functools
 import logging
 import datetime
 import os
@@ -35,12 +38,31 @@ def save_notes(data):
     blob_client.upload_blob(json.dumps(data), overwrite=True)
 ############################################################################################################################
 
+def get_api_key():
+    key_vault_url = os.getenv("KEY_VAULT_URL") 
+    secret_name = "funcApp-apiKey"
+    credential = DefaultAzureCredential()
+    client = SecretClient(vault_url=key_vault_url, credential=credential)
+    secret = client.get_secret(secret_name)
+    return secret.value
+
+def validate_api_key(req: func.HttpRequest):
+    incoming = req.headers.get("x-functions-key")
+    if not incoming:
+        return False
+    
+    expected = get_api_key()
+    return incoming == expected
+
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 # POST notes
 @app.route(route="post/Notes", methods=["POST"])
 def postNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [POST] request.')
+
+    if not validate_api_key(req):
+        return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
     
     notes = read_notes()
     data = None
@@ -77,6 +99,10 @@ def postNotes(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="get/Notes", methods=["GET"])
 def getNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [GET] request.')
+
+    if not validate_api_key(req):
+        return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
+
     notes = read_notes()
 
     title = req.params.get("title")
@@ -106,6 +132,10 @@ def getNotes(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="put/Notes", methods=["PUT"])
 def putNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [PUT] request.')
+
+    if not validate_api_key(req):
+        return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
+
     notes = read_notes()
 
     title = req.params.get("title")
@@ -140,6 +170,10 @@ def putNotes(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="delete/Notes", methods=["DELETE"])
 def deleteNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [DELETE] request.')
+
+    if not validate_api_key(req):
+        return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
+
     notes = read_notes()
 
     title = req.params.get("title")
@@ -172,5 +206,9 @@ def deleteNotes(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="get/Notes/count", methods=["GET"])
 def countNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [GET] request.')
+
+    if not validate_api_key(req):
+        return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
+
     notes = read_notes()
     return func.HttpResponse(json.dumps({"count": len(notes)}), mimetype="application/json", status_code=200)
