@@ -69,7 +69,8 @@ def create_note(title, category=None, data=None):
         "category": category,
         "data": data,
         "post_date": now,
-        "last_modified_date": now
+        "last_modified_date": now,
+        "isStale": False
     }
 
     table.create_entity(entity=entity)
@@ -263,3 +264,39 @@ def countNotes(req: func.HttpRequest) -> func.HttpResponse:
 
     count = len(entity)
     return func.HttpResponse(json.dumps({"count": count}), mimetype="application/json", status_code=200)
+
+#PATCH notes to mark as stale
+@app.route(route="patch/Notes/validateStale", methods=["PATCH"])
+def validateNotes(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Python HTTP trigger function processed a [PATCH] request.')
+
+    if not validate_api_key(req):
+        return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
+    
+    table = get_table_service_client()
+    notes = query_notes()
+    now = datetime.datetime.now()
+    stale = datetime.timedelta(minutes=5)  #Stale After 5 minutes (For Demonstration Purposes)
+    count = 0
+
+    for i in notes:
+        try:
+            last_modified = datetime.datetime.fromisoformat(i["last_modified_date"])
+        except Exception:
+            continue
+
+        if last_modified.tzinfo is not None:
+            last_modified = last_modified.replace(tzinfo=None)
+
+        if now - last_modified > stale:
+            i["isStale"] = True
+            i["last_modified_date"] = now.isoformat()
+            table.update_entity(entity=i, mode="replace")
+            count += 1
+
+    response = {
+        "updatedCount": count,
+        "timestamp": now.isoformat()
+    }
+
+    return func.HttpResponse(json.dumps(response), mimetype="application/json", status_code=200)
