@@ -100,6 +100,7 @@ def postNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [POST] request.')
 
     if not validate_api_key(req):
+        logging.warning("[-] Unauthorized access attempt detected.")
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
     
     try:
@@ -126,6 +127,7 @@ def getNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [GET] request.')
 
     if not validate_api_key(req):
+        logging.warning("[-] Unauthorized access attempt detected.")
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
     title = req.params.get("title")
@@ -166,6 +168,7 @@ def putNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [PUT] request.')
 
     if not validate_api_key(req):
+        logging.warning("[-] Unauthorized access attempt detected.")
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
     title = req.params.get("title")
@@ -214,6 +217,7 @@ def deleteNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [DELETE] request.')
 
     if not validate_api_key(req):
+        logging.warning("[-] Unauthorized access attempt detected.")
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
     title = req.params.get("title")
@@ -258,6 +262,7 @@ def countNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [GET] request.')
 
     if not validate_api_key(req):
+        logging.warning("[-] Unauthorized access attempt detected.")
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
 
     entity = query_notes()
@@ -271,6 +276,7 @@ def validateNotes(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a [PATCH] request.')
 
     if not validate_api_key(req):
+        logging.warning("[-] Unauthorized access attempt detected.")
         return func.HttpResponse("[-] Unauthorized, Invalid or Missing API Key.", status_code=401)
     
     table = get_table_service_client()
@@ -290,7 +296,6 @@ def validateNotes(req: func.HttpRequest) -> func.HttpResponse:
 
         if now - last_modified > stale:
             i["isStale"] = True
-            i["last_modified_date"] = now.isoformat()
             table.update_entity(entity=i, mode="replace")
             count += 1
 
