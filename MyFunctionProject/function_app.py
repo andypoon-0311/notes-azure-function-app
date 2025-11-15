@@ -51,7 +51,8 @@ def create_note(title, category=None, data=None):
 
     try:
         already_exists = table.get_entity(partition_key="Notes", row_key=row_key)
-        return None #In situations where the note already exists according to the row key (title must be unique)
+        if already_exists:
+            return "exists" #In situations where the note already exists according to the row key (title must be unique)
     except:
         pass        #entity in azure table does not exist so we can proceed
 
@@ -116,7 +117,7 @@ def postNotes(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse("[-] Bad [POST] request.\n Title is required and ALL is invalid.", status_code=400)
     
     entity = create_note(title, category, data)
-    if entity is None:
+    if entity == "exists":
         return func.HttpResponse("[-] Note with this title already exists.", status_code=409)  #Conflict
     
     return func.HttpResponse(json.dumps({"[+] POST successful": entity}), mimetype="application/json", status_code=201)

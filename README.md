@@ -8,15 +8,17 @@ Simple function app in python to store notes using azure python sdk v2.
   </a>
 </p>
 
-The function app is connected to Azure Blob Storage so that data may persist on stable storage rather than living only in memory.
+The function app is connected to Azure Table Storage so that data may persist on stable storage rather than living only in memory.
 
 By navigating to MyFunctionProject/function_app.py you will see the first 3 helper functions to facilitate this connection to blob storage.
 
-**get_blob_service_client** connects to the storage account using a connection string. In the code you may see "AzureWebJobsStorage" as the connection string. "AzureWebJobsStorage" is just the name of the environment variable in azure that contains the connection string, just as if you were using a local .env file to store a key to a resource.
+**get_table_service_client** connects to the storage account using the function app's system assigned managed identity. In the code you may see "STORAGE_ACCOUNT" as the value for the variable **account_name**. "STORAGE_ACCOUNT" is just the name of the environment variable in azure that contains the name of the target storage account, just as if you were using a local .env file to store a key to a resource. It then proceeds to try and get the **table_client**, following that it attempts to create the table and if it already exists it does nothing. The return value is **table_client**.
 
-**read_notes** gets a reference to the container named "storenotes". If it does not exist it will attempt to create it. Then it attempts to get a blob client for the "notes.json" file so that it can attempt to read its contents. It will return an empty list if nothing exists so it is important if you are deploying this in your own environment that you ensure the "notes.json" file exists within a container named "storenotes". This is where all of "notes" data will be stored.
+**query_notes** gets a reference to the table by calling **get_table_service_client**. If no title is passed then it will return all entities. If a title is provided this helper will return the specified entity by using the partition_key "Notes" (Notes is the only partition key that exists in this case) and the row_key (title converted to lower). If nothing is found it will return none.
 
-**save_notes** begins similarily to **read_notes**. It attempts to get a reference to the container named "storenotes". It then gets the blob "notes.json" and uploads the user provided data to the blob as json. Be careful with POST and PUT operations as it will overwrite data, please reference line 35.
+**query_notes_id** begins similarily to **query_notes**. It attempts to get a reference to the table by calling **get_table_service_client**. Because I have elected to make title the row_key, I must iterate through all entities if I wish to retrieve notes with the **note_id**. The purpose of this helper function is to provide flexibility to the end user in GET operations. Generally the row_key is a numeric value, but in this use case, I thought it would make more sense to retrieve notes by their title, rather than a numeric value that has nothing to do with the contents of the stored note. In any case, users may elect to utilize **note_id** instead of title when attempting to retrieve stored notes.
+
+**create_note** inserts new note entities into Azure Table Storage. It takes three parameters, title (required), category, and data. Title being the only required parameter, the function initializes category and data to None. The function beings by checking for a title value, if one is not provided a Null value will immediately be returned. After this check, a reference is retrieved to the Azure Table Storage resource in a same manner as above. The variable now contains the datetime.now() value in isoformat so that it may be serializable by the function app. The row_key is immediately provided the value of *title.lower()*. 
 
 ```python
 #overwrite data on line 35
