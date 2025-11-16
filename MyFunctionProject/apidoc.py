@@ -19,16 +19,79 @@ def openapi(req: func.HttpRequest) -> func.HttpResponse:
 def docs(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger for API documentation.')
     html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Notes API Documentation</title>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.css">
-    </head>
-    <body>
-      <redoc spec-url="/api/openapi.json"></redoc>
-      <script src="https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"></script>
-    </body>
-    </html>
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <title>Notes API Documentation</title>
+        <style>
+            body {
+            margin: 0;
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: Segoe UI, Helvetica, Arial, sans-serif;
+            }
+            #redoc-container {
+            height: 100vh;
+            }
+        </style>
+        </head>
+        <body>
+        <div id="redoc-container"></div>
+
+        <script src="https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js"></script>
+        <script>
+        Redoc.init('/api/openapi.json', {
+        theme: {
+            colors: {
+            primary: { main: '#00bcd4' },
+            text: {
+                primary: '#ffffff',
+                secondary: '#cccccc'
+            },
+            http: {
+                get: "#03a9f4",
+                post: "#4caf50",
+                put: "#ff9800",
+                delete: "#f44336",
+                patch: "#9c27b0"
+            },
+            border: {
+                dark: "#333333",
+                light: "#444444"
+            }
+            },
+            typography: {
+            fontSize: '15px',
+            fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif',
+            headings: {
+                fontSize: '1.1em',
+                fontWeight: 'bold',
+                color: '#ffffff'
+            },
+            code: {
+                backgroundColor: "#1e1e1e",
+                color: "#00e5ff"
+            }
+            },
+            sidebar: {
+            backgroundColor: '#1e1e1e',
+            textColor: '#e0e0e0'
+            },
+            rightPanel: {
+            backgroundColor: "#1a1a1a",
+            textColor: "#e0e0e0"
+            },
+            schema: {
+            labelsTextColor: "#e0e0e0",  
+            requireLabelColor: "#ff4081",
+            typeNameColor: "#00bcd4",
+            nestedBackground: "#1f1f1f"
+            }
+        }
+        }, document.getElementById('redoc-container'));
+        </script>
+        </body>
+        </html>
+
     """
     return func.HttpResponse(html, mimetype="text/html")
