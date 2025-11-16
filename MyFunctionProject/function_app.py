@@ -2,6 +2,7 @@ import azure.functions as func
 from azure.data.tables import TableServiceClient
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+from apidoc import bp
 import logging
 import datetime
 import os
@@ -94,6 +95,7 @@ def validate_api_key(req: func.HttpRequest):
     return incoming == expected
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+app.register_functions(bp)
 
 # POST notes
 @app.route(route="post/Notes", methods=["POST"])

@@ -1,0 +1,164 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "Recurrence": {
+                "recurrence": {
+                    "interval": 1,
+                    "frequency": "Day",
+                    "timeZone": "Eastern Standard Time",
+                    "schedule": {
+                        "hours": [
+                            8
+                        ]
+                    }
+                },
+                "evaluatedRecurrence": {
+                    "interval": 1,
+                    "frequency": "Day",
+                    "timeZone": "Eastern Standard Time",
+                    "schedule": {
+                        "hours": [
+                            8
+                        ]
+                    }
+                },
+                "type": "Recurrence"
+            }
+        },
+        "actions": {
+            "Get_secret": {
+                "runAfter": {},
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('funcApp-apiKey')}/value"
+                },
+                "runtimeConfiguration": {
+                    "secureData": {
+                        "properties": [
+                            "inputs",
+                            "outputs"
+                        ]
+                    }
+                }
+            },
+            "HTTP": {
+                "runAfter": {
+                    "Get_secret": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://notesfuncapp111.azurewebsites.net/api/patch/Notes/validateStale",
+                    "method": "PATCH",
+                    "headers": {
+                        "x-functions-key": "@{body('Get_secret')?['value']}",
+                        "Content-Type": "application/json"
+                    }
+                },
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                }
+            },
+            "Condition": {
+                "actions": {
+                    "Send_an_email_(V2)": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['outlook']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "body": {
+                                "To": "poona@mail.sacredheart.edu",
+                                "Subject": "Logic App Stale Notes Run",
+                                "Body": "<p class=\"editor-paragraph\">[+] SUCCESS</p>",
+                                "Importance": "Normal"
+                            },
+                            "path": "/v2/Mail"
+                        }
+                    }
+                },
+                "runAfter": {
+                    "HTTP": [
+                        "Succeeded"
+                    ]
+                },
+                "else": {
+                    "actions": {
+                        "Send_an_email_(V2)_1": {
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['outlook']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "body": {
+                                    "To": "poona@mail.sacredheart.edu",
+                                    "Subject": "Logic App Stale Notes Run",
+                                    "Body": "<p class=\"editor-paragraph\">[-] FAILURE</p>",
+                                    "Importance": "Normal"
+                                },
+                                "path": "/v2/Mail"
+                            }
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@outputs('HTTP')?['statusCode']",
+                                200
+                            ]
+                        }
+                    ]
+                },
+                "type": "If"
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "value": {
+                "keyvault": {
+                    "id": "/subscriptions/fb671dad-3693-4e97-9eac-587c87f82981/providers/Microsoft.Web/locations/westus3/managedApis/keyvault",
+                    "connectionId": "/subscriptions/fb671dad-3693-4e97-9eac-587c87f82981/resourceGroups/rgmyfunc01/providers/Microsoft.Web/connections/keyvault",
+                    "connectionName": "keyvault",
+                    "connectionProperties": {
+                        "authentication": {
+                            "type": "ManagedServiceIdentity"
+                        }
+                    }
+                },
+                "outlook": {
+                    "id": "/subscriptions/fb671dad-3693-4e97-9eac-587c87f82981/providers/Microsoft.Web/locations/westus3/managedApis/outlook",
+                    "connectionId": "/subscriptions/fb671dad-3693-4e97-9eac-587c87f82981/resourceGroups/rgmyfunc01/providers/Microsoft.Web/connections/outlook",
+                    "connectionName": "outlook"
+                }
+            }
+        }
+    }
+}

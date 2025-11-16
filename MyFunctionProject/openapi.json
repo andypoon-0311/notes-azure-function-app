@@ -1,0 +1,807 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Notes API",
+    "version": "1.0.0",
+    "description": "Cloud-native Notes API backed by Azure Table Storage, secured with x-functions-key from Azure Key Vault."
+  },
+  "servers": [
+    {
+      "url": "https://notesfuncapp111.azurewebsites.net/api",
+      "description": "Azure Functions base URL"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-functions-key",
+        "description": "Master/API key stored in Azure Key Vault and required for all Notes API endpoints."
+      }
+    },
+    "schemas": {
+      "Note": {
+        "type": "object",
+        "properties": {
+          "PartitionKey": {
+            "type": "string",
+            "example": "Notes"
+          },
+          "RowKey": {
+            "type": "string",
+            "example": "meeting-notes"
+          },
+          "note_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "title": {
+            "type": "string",
+            "example": "Meeting Notes"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true,
+            "example": "Work"
+          },
+          "data": {
+            "type": "string",
+            "nullable": true,
+            "example": "Discussed Q4 roadmap and priorities."
+          },
+          "post_date": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-11-10T14:00:00"
+          },
+          "last_modified_date": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-11-10T14:05:00"
+          },
+          "isStale": {
+            "type": "boolean",
+            "example": false
+          }
+        },
+        "required": [
+          "PartitionKey",
+          "RowKey",
+          "note_id",
+          "title",
+          "post_date",
+          "last_modified_date",
+          "isStale"
+        ]
+      },
+      "NoteCreateRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "example": "Meeting Notes"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true,
+            "example": "Work"
+          },
+          "data": {
+            "type": "string",
+            "nullable": true,
+            "example": "Discussed Q4 roadmap and priorities."
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "NoteUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Optional title used to locate the note if note_id is not provided."
+          },
+          "note_id": {
+            "type": "integer",
+            "description": "Optional note_id used to locate the note if title is not provided."
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "data": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "NoteLookupRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Title of the note to look up."
+          },
+          "note_id": {
+            "type": "integer",
+            "description": "Numeric ID of the note to look up."
+          }
+        }
+      },
+      "NotesCountResponse": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "example": 5
+          }
+        }
+      },
+      "ValidateResponse": {
+        "type": "object",
+        "properties": {
+          "updatedCount": {
+            "type": "integer",
+            "example": 3
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2025-11-10T15:30:00"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "paths": {
+    "/post/Notes": {
+      "post": {
+        "summary": "Create a new note",
+        "description": "Creates a new note in Azure Table Storage. Title must be unique (case-insensitive).",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteCreateRequest"
+              },
+              "examples": {
+                "basicNote": {
+                  "summary": "Simple note",
+                  "value": {
+                    "title": "Shopping List",
+                    "category": "Personal",
+                    "data": "Milk, eggs, bread."
+                  }
+                },
+                "workNote": {
+                  "summary": "Work meeting note",
+                  "value": {
+                    "title": "Sprint Planning",
+                    "category": "Work",
+                    "data": "Plan tasks for the next 2 weeks."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note successfully created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "[+] POST successful": {
+                      "$ref": "#/components/schemas/Note"
+                    }
+                  }
+                },
+                "examples": {
+                  "createdNote": {
+                    "summary": "Created note response",
+                    "value": {
+                      "[+] POST successful": {
+                        "PartitionKey": "Notes",
+                        "RowKey": "shopping-list",
+                        "note_id": 1,
+                        "title": "Shopping List",
+                        "category": "Personal",
+                        "data": "Milk, eggs, bread.",
+                        "post_date": "2025-11-10T14:00:00",
+                        "last_modified_date": "2025-11-10T14:00:00",
+                        "isStale": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (missing or invalid title)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "missingTitle": {
+                    "summary": "Title missing",
+                    "value": "[-] Bad [POST] request.\n Title is required and ALL is invalid."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid x-functions-key)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "unauthorized": {
+                    "value": "[-] Unauthorized, Invalid or Missing API Key."
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict (note with this title already exists)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "conflict": {
+                    "value": "[-] Note with this title already exists."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/get/Notes": {
+      "get": {
+        "summary": "Get notes",
+        "description": "Retrieves notes from Azure Table Storage. If no title or note_id is provided, all notes are returned.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Title of the note to retrieve. Use 'ALL' or omit both title and note_id to retrieve all notes.",
+            "example": "Shopping List"
+          },
+          {
+            "name": "note_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Numeric ID of the note to retrieve.",
+            "example": 1
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteLookupRequest"
+              },
+              "examples": {
+                "byTitle": {
+                  "summary": "Lookup by title",
+                  "value": { "title": "Shopping List" }
+                },
+                "byId": {
+                  "summary": "Lookup by note_id",
+                  "value": { "note_id": 1 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Notes successfully retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Note"
+                      }
+                    },
+                    {
+                      "$ref": "#/components/schemas/Note"
+                    }
+                  ]
+                },
+                "examples": {
+                  "allNotes": {
+                    "summary": "All notes",
+                    "value": [
+                      {
+                        "PartitionKey": "Notes",
+                        "RowKey": "shopping-list",
+                        "note_id": 1,
+                        "title": "Shopping List",
+                        "category": "Personal",
+                        "data": "Milk, eggs, bread.",
+                        "post_date": "2025-11-10T14:00:00",
+                        "last_modified_date": "2025-11-10T14:00:00",
+                        "isStale": false
+                      },
+                      {
+                        "PartitionKey": "Notes",
+                        "RowKey": "sprint-planning",
+                        "note_id": 2,
+                        "title": "Sprint Planning",
+                        "category": "Work",
+                        "data": "Plan tasks for next sprint.",
+                        "post_date": "2025-11-10T15:00:00",
+                        "last_modified_date": "2025-11-10T15:10:00",
+                        "isStale": false
+                      }
+                    ]
+                  },
+                  "singleNote": {
+                    "summary": "Single note by title",
+                    "value": {
+                      "PartitionKey": "Notes",
+                      "RowKey": "shopping-list",
+                      "note_id": 1,
+                      "title": "Shopping List",
+                      "category": "Personal",
+                      "data": "Milk, eggs, bread.",
+                      "post_date": "2025-11-10T14:00:00",
+                      "last_modified_date": "2025-11-10T14:00:00",
+                      "isStale": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (invalid JSON or invalid parameters)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "invalidJson": {
+                    "summary": "Invalid JSON in GET body",
+                    "value": "[-] Bad [GET] request. Invalid JSON."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid x-functions-key)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "unauthorized": {
+                    "value": "[-] Unauthorized, Invalid or Missing API Key."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "notFound": {
+                    "value": "[-] Note not found."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/put/Notes": {
+      "put": {
+        "summary": "Update an existing note",
+        "description": "Updates category and/or data for an existing note, located by note_id or title.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Title of the note to update (if note_id not provided)."
+          },
+          {
+            "name": "note_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Numeric ID of the note to update."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteUpdateRequest"
+              },
+              "examples": {
+                "updateById": {
+                  "summary": "Update note by note_id",
+                  "value": {
+                    "note_id": 1,
+                    "category": "Personal",
+                    "data": "Milk, eggs, bread, coffee."
+                  }
+                },
+                "updateByTitle": {
+                  "summary": "Update note by title",
+                  "value": {
+                    "title": "Shopping List",
+                    "category": "Personal",
+                    "data": "Milk, eggs, bread, coffee, tea."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Note successfully updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "[+] PUT (Update) Successful For": {
+                      "$ref": "#/components/schemas/Note"
+                    }
+                  }
+                },
+                "examples": {
+                  "updatedNote": {
+                    "summary": "Updated note response",
+                    "value": {
+                      "[+] PUT (Update) Successful For": {
+                        "PartitionKey": "Notes",
+                        "RowKey": "shopping-list",
+                        "note_id": 1,
+                        "title": "Shopping List",
+                        "category": "Personal",
+                        "data": "Milk, eggs, bread, coffee.",
+                        "post_date": "2025-11-10T14:00:00",
+                        "last_modified_date": "2025-11-10T15:20:00",
+                        "isStale": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (invalid JSON or no updatable fields)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "invalidJson": {
+                    "summary": "Invalid JSON",
+                    "value": "[-] Bad [PUT] request. Invalid JSON."
+                  },
+                  "noFields": {
+                    "summary": "No fields to update",
+                    "value": "[-] No valid fields to update provided."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid x-functions-key)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "unauthorized": {
+                    "value": "[-] Unauthorized, Invalid or Missing API Key."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "notFound": {
+                    "value": "[-] Note not found."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/delete/Notes": {
+      "delete": {
+        "summary": "Delete an existing note",
+        "description": "Deletes an existing note by title or note_id. 'ALL' is not allowed.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Title of the note to delete."
+          },
+          {
+            "name": "note_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Numeric ID of the note to delete."
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteLookupRequest"
+              },
+              "examples": {
+                "deleteByTitle": {
+                  "summary": "Delete by title (body)",
+                  "value": {
+                    "title": "Shopping List"
+                  }
+                },
+                "deleteById": {
+                  "summary": "Delete by note_id (body)",
+                  "value": {
+                    "note_id": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Note successfully deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/Note"
+                  }
+                },
+                "examples": {
+                  "deletedById": {
+                    "summary": "Deleted note (by id)",
+                    "value": {
+                      "[+] DELETE successful for": {
+                        "PartitionKey": "Notes",
+                        "RowKey": "shopping-list",
+                        "note_id": 1,
+                        "title": "Shopping List",
+                        "category": "Personal",
+                        "data": "Milk, eggs, bread.",
+                        "post_date": "2025-11-10T14:00:00",
+                        "last_modified_date": "2025-11-10T14:00:00",
+                        "isStale": false
+                      }
+                    }
+                  },
+                  "deletedByTitle": {
+                    "summary": "Deleted note (by title)",
+                    "value": {
+                      "[+] DELETE successful for title": {
+                        "PartitionKey": "Notes",
+                        "RowKey": "shopping-list",
+                        "note_id": 1,
+                        "title": "Shopping List",
+                        "category": "Personal",
+                        "data": "Milk, eggs, bread.",
+                        "post_date": "2025-11-10T14:00:00",
+                        "last_modified_date": "2025-11-10T14:00:00",
+                        "isStale": false
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (invalid JSON or ALL used)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "invalidJson": {
+                    "summary": "Invalid JSON",
+                    "value": "[-] Bad [DELETE] request. Invalid JSON."
+                  },
+                  "allInvalid": {
+                    "summary": "ALL not valid",
+                    "value": "[-] ALL is not valid for deletion."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid x-functions-key)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "unauthorized": {
+                    "value": "[-] Unauthorized, Invalid or Missing API Key."
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Note not found",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "notFound": {
+                    "value": "[-] Note not found."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/get/Notes/count": {
+      "get": {
+        "summary": "Get total note count",
+        "description": "Returns the total number of notes stored in Azure Table Storage.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Count successfully retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotesCountResponse"
+                },
+                "examples": {
+                  "countExample": {
+                    "summary": "Example count response",
+                    "value": {
+                      "count": 5
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid x-functions-key)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "unauthorized": {
+                    "value": "[-] Unauthorized, Invalid or Missing API Key."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/patch/Notes/validateStale": {
+      "patch": {
+        "summary": "Validate notes and mark stale ones",
+        "description": "Batch validation endpoint that marks notes as stale if last_modified_date is older than the configured threshold (e.g., 5 minutes for demo). Returns the count of updated notes and a timestamp.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validation completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                },
+                "examples": {
+                  "validationResult": {
+                    "summary": "Example validation result",
+                    "value": {
+                      "updatedCount": 2,
+                      "timestamp": "2025-11-10T16:00:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (missing or invalid x-functions-key)",
+            "content": {
+              "text/plain": {
+                "examples": {
+                  "unauthorized": {
+                    "value": "[-] Unauthorized, Invalid or Missing API Key."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
