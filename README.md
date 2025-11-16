@@ -10,8 +10,6 @@ Simple function app in python to store notes using azure python sdk v2.
 
 The function app is connected to Azure Table Storage so that data may persist on stable storage rather than living only in memory.
 
-By navigating to MyFunctionProject/function_app.py you will see the first 3 helper functions to facilitate this connection to blob storage.
-
 ## Helpers
 
 **get_table_service_client** connects to the storage account using the function app's system assigned managed identity. In the code you may see "STORAGE_ACCOUNT" as the value for the variable **account_name**. "STORAGE_ACCOUNT" is just the name of the environment variable in azure that contains the name of the target storage account, just as if you were using a local .env file to store a key to a resource. It then proceeds to try and get the **table_client**, following that it attempts to create the table and if it already exists it does nothing. The return value is **table_client**.
