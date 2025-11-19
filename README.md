@@ -3,7 +3,7 @@ Simple function app in python to store notes using azure python sdk v2.
 
 **Click Here To Watch a Demo, Will Redirect To Youtube**
 <p align="center">
-  <a href="https://youtu.be/LMVBpxSYq-s">
+  <a href="https://youtu.be/L8R9F_888aw">
     <img src="https://img.youtube.com/vi/LMVBpxSYq-s/0.jpg" alt="Watch the demo" width="70%">
   </a>
 </p>
